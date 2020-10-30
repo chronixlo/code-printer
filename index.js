@@ -6,17 +6,29 @@ const hljs = require('highlight.js')
 const { parse } = require('node-html-parser')
 const Entities = require('html-entities').AllHtmlEntities
 const entities = new Entities()
-
-const COLORS = {
-  keyword: '#569CD6',
-  comment: '#0b0',
-  regexp: '#D16969',
-  string: '#CE9178',
-  number: '#0bb',
-  function: '#DCDCAA',
-}
+const cssParser = require('css')
 
 async function main() {
+  const css = fs
+    .readFileSync('node_modules/highlight.js/styles/zenburn.css')
+    .toString()
+
+  const json = cssParser.parse(css)
+
+  const getColor = (selector) => {
+    const rule = json.stylesheet.rules.find(
+      (rule) => rule.type === 'rule' && rule.selectors.includes('.' + selector),
+    )
+    if (!rule) {
+      return
+    }
+    const color = rule.declarations.find((dec) => dec.property === 'color')
+    if (!color) {
+      return
+    }
+    return color.value
+  }
+
   const file = fs.readFileSync(require.main.filename).toString()
   const minified = await minify(require.main.filename)
 
@@ -25,8 +37,6 @@ async function main() {
   const lines = highlighted.split('\n').map(parse)
 
   const rowHeight = 32
-
-  const types = {}
 
   const longestLine = 100
 
@@ -44,26 +54,32 @@ async function main() {
   let col = 0
   let row = 0
 
-  const print = (childNodes, resetCol) => {
+  const print = (childNodes, parentNode, resetCol) => {
     if (resetCol) {
       row++
       col = 0
     }
     childNodes.forEach((childNode) => {
       if (childNode.childNodes.length) {
-        print(childNode.childNodes)
+        print(childNode.childNodes, childNode)
         return
       }
 
       const text = entities.decode(childNode.rawText)
+      const color = getColor(parentNode.classNames[0])
 
-      ctx.fillText(text, 10 + col * 16, row * rowHeight)
+      if (color) {
+        ctx.fillStyle = color
+      } else {
+        ctx.fillStyle = '#fff'
+      }
+      ctx.fillText(text, 10 + col * 14, row * rowHeight)
       col += text.length
     })
   }
 
   lines.forEach((line) => {
-    print(line.childNodes, true)
+    print(line.childNodes, line, true)
   })
 
   // console.log(Object.keys(types))
