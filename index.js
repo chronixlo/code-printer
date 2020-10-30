@@ -18,47 +18,11 @@ const COLORS = {
 
 async function main() {
   const file = fs.readFileSync(require.main.filename).toString()
-  
+  const minified = await minify(require.main.filename)
+
   const highlighted = hljs.highlightAuto(file).value
 
-  const minified = (await minify(require.main.filename))
-  // .replace(/;/g, ';\n')
-
-  const split = highlighted.split('\n')
-  const all = []
-
-  split.forEach(row => {
-    const tokenized = []
-    let i = 0
-    let leftover = row
-
-    while (true) {
-      const nextTagIndex = leftover.indexOf('<')
-
-      if (nextTagIndex === 0) {
-        const firstIndex = leftover.indexOf('>') + 1
-        const lastIndex = leftover.slice(firstIndex).indexOf('>') + 1
-        const index = firstIndex + lastIndex
-        const a = leftover.slice(0, index);
-        const type = a.match(/class="(.*)"/)
-        const content = entities.decode(a.match(/>(.*)</)[1])
-        tokenized.push({ content, type: type && type[1].replace('hljs-', '') })
-        i = index
-      } else {
-        tokenized.push({ content: leftover.slice(0, nextTagIndex) })
-        if (nextTagIndex === -1) {
-          break
-        }
-        i = nextTagIndex
-      }
-      leftover = leftover.slice(i)
-      if (!leftover.length) {
-        break;
-      }
-    }
-
-    all.push(tokenized)
-  })
+  const lines = highlighted.split('\n').map(parse)
 
   const rowHeight = 32
 
@@ -67,37 +31,51 @@ async function main() {
   const longestLine = 100
 
   const width = longestLine * 16
-  const height = all.length * rowHeight
-  
+  const height = lines.length * rowHeight
+
   const canvas = createCanvas(width, height)
   const ctx = canvas.getContext('2d')
 
   ctx.font = '24px monospace'
   ctx.fillStyle = '#1e1e1e'
   ctx.fillRect(0, 0, width, height)
+  ctx.fillStyle = '#fff'
 
-  all.forEach((row, idx) => {
-    let col = 0;
-    row.forEach((line) => {
-      types[line.type] = 1
-      if (line.type) {
-        ctx.fillStyle = COLORS[line.type] || '#ccc'
-      } else {
-        ctx.fillStyle = '#fff'
+  let col = 0
+  let row = 0
+
+  const print = (childNodes, resetCol) => {
+    if (resetCol) {
+      row++
+      col = 0
+    }
+    childNodes.forEach((childNode) => {
+      if (childNode.childNodes.length) {
+        print(childNode.childNodes)
+        return
       }
-      ctx.fillText(line.content, 10 + col * 16, idx * rowHeight)
-      col += line.content.length
+
+      ctx.fillText(childNode.rawText, 10 + col * 16, row * rowHeight)
+      col += childNode.rawText.length
     })
+  }
+
+  lines.forEach((line) => {
+    print(line.childNodes, true)
   })
 
-  console.log(Object.keys(types))
+  // console.log(Object.keys(types))
 
-  canvas.toBuffer((err, buf) => {
-    if (err) {
-      throw err
-    }
-    fs.writeFileSync(__dirname + '/result.jpg', buf);
-  }, 'image/jpeg', { quality: 0.95 })
+  canvas.toBuffer(
+    (err, buf) => {
+      if (err) {
+        throw err
+      }
+      fs.writeFileSync(__dirname + '/result.jpg', buf)
+    },
+    'image/jpeg',
+    { quality: 0.95 },
+  )
 }
 
 main()
