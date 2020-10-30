@@ -8,6 +8,11 @@ const Entities = require('html-entities').AllHtmlEntities
 const entities = new Entities()
 const cssParser = require('css')
 
+const FONT_SIZE = 24
+const FONT_WIDTH = 14
+const PADDING = 10
+const LINE_HEIGHT = FONT_SIZE * 1.5
+
 async function main() {
   const css = fs
     .readFileSync('node_modules/highlight.js/styles/androidstudio.css')
@@ -15,7 +20,7 @@ async function main() {
 
   const json = cssParser.parse(css)
 
-  const getBackgroundColor = (selector) => {
+  const getBackgroundColor = () => {
     const rule = json.stylesheet.rules.find(
       (rule) => rule.type === 'rule' && rule.selectors.includes('.hljs'),
     )
@@ -46,19 +51,17 @@ async function main() {
 
   const lines = highlighted.split('\n').map(parse)
 
-  const rowHeight = 32
-
   const longestLine = 100
 
-  const width = longestLine * 16
-  const height = lines.length * rowHeight
+  const width = longestLine * FONT_WIDTH
+  const height = lines.length * LINE_HEIGHT + PADDING
 
   const canvas = createCanvas(width, height)
   const ctx = canvas.getContext('2d')
 
   const defaultColor = getColor('hljs')
 
-  ctx.font = '24px monospace'
+  ctx.font = FONT_SIZE + 'px monospace'
   ctx.fillStyle = getBackgroundColor()
   ctx.fillRect(0, 0, width, height)
   ctx.fillStyle = defaultColor
@@ -85,7 +88,11 @@ async function main() {
       } else {
         ctx.fillStyle = defaultColor
       }
-      ctx.fillText(text, 10 + col * 14, row * rowHeight)
+      ctx.fillText(
+        text,
+        PADDING + col * FONT_WIDTH,
+        PADDING + row * LINE_HEIGHT,
+      )
       col += text.length
     })
   }
@@ -94,14 +101,12 @@ async function main() {
     print(line.childNodes, line, true)
   })
 
-  // console.log(Object.keys(types))
-
   canvas.toBuffer(
     (err, buf) => {
       if (err) {
         throw err
       }
-      fs.writeFileSync(__dirname + '/result.jpg', buf)
+      fs.writeFileSync(require.main.filename.replace('.js', '.jpg'), buf)
     },
     'image/jpeg',
     { quality: 0.95 },
