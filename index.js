@@ -10,19 +10,29 @@ const cssParser = require('css')
 
 async function main() {
   const css = fs
-    .readFileSync('node_modules/highlight.js/styles/zenburn.css')
+    .readFileSync('node_modules/highlight.js/styles/androidstudio.css')
     .toString()
 
   const json = cssParser.parse(css)
+
+  const getBackgroundColor = (selector) => {
+    const rule = json.stylesheet.rules.find(
+      (rule) => rule.type === 'rule' && rule.selectors.includes('.hljs'),
+    )
+    const color =
+      rule && rule.declarations.find((dec) => dec.property === 'background')
+    if (!color) {
+      return
+    }
+    return color.value
+  }
 
   const getColor = (selector) => {
     const rule = json.stylesheet.rules.find(
       (rule) => rule.type === 'rule' && rule.selectors.includes('.' + selector),
     )
-    if (!rule) {
-      return
-    }
-    const color = rule.declarations.find((dec) => dec.property === 'color')
+    const color =
+      rule && rule.declarations.find((dec) => dec.property === 'color')
     if (!color) {
       return
     }
@@ -46,10 +56,12 @@ async function main() {
   const canvas = createCanvas(width, height)
   const ctx = canvas.getContext('2d')
 
+  const defaultColor = getColor('hljs')
+
   ctx.font = '24px monospace'
-  ctx.fillStyle = '#1e1e1e'
+  ctx.fillStyle = getBackgroundColor()
   ctx.fillRect(0, 0, width, height)
-  ctx.fillStyle = '#fff'
+  ctx.fillStyle = defaultColor
 
   let col = 0
   let row = 0
@@ -71,7 +83,7 @@ async function main() {
       if (color) {
         ctx.fillStyle = color
       } else {
-        ctx.fillStyle = '#fff'
+        ctx.fillStyle = defaultColor
       }
       ctx.fillText(text, 10 + col * 14, row * rowHeight)
       col += text.length
