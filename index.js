@@ -55,8 +55,10 @@ async function main() {
         return
       }
 
-      ctx.fillText(childNode.rawText, 10 + col * 16, row * rowHeight)
-      col += childNode.rawText.length
+      const text = entities.decode(childNode.rawText)
+
+      ctx.fillText(text, 10 + col * 16, row * rowHeight)
+      col += text.length
     })
   }
 
